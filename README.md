@@ -1,47 +1,83 @@
 # Leafwatch
 
-Leafwatch is a mobile-ready pest detection website for Botany students. Students upload a leaf photo through one Vercel link. The site returns the detected pest species, confidence, potential crop damage, and practical scouting advice.
+Leafwatch is a mobile-ready pest detection website for Botany students. Upload a leaf photo to identify visible pest species (aphids, whiteflies, caterpillars, and other IP102 species), confidence scores, bounding boxes, potential crop damage, and scouting advice.
 
-## Deploy the website on GitHub, Render, and Vercel
+## Free Hosting Options (Shareable Client Link)
 
-1. Create a GitHub repository and upload this `leafwatch` folder.
-2. Sign in to Render with GitHub, select **New +**, then **Blueprint**, and select the repository. Render detects `render.yaml` and deploys the detector.
-3. Copy the Render service URL after its `/api/status` page says `"ready": true`.
-4. Sign in to Vercel with GitHub and import the same repository.
-5. In Vercel Project Settings, add the two environment variables below, using your Render URL, then deploy again.
+### Option 1: Render Free Web Service (All-in-One: Model + Website)
 
-Students only receive the Vercel URL. They never see model credentials, training images, or the separate inference endpoint URL.
+`serve.py` already serves both the trained model API and the full website (`dist/`), so you only need one free Render service and one URL to share with your client.
 
-## Copy these two values into Vercel
+1. Push this `leafwatch` folder to a GitHub repository.
+2. Sign in to [Render](https://render.com) with GitHub, click **New + → Blueprint**, and select your repository.
+3. Render automatically reads `render.yaml` and `Dockerfile` and deploys the service for free (no credit card required).
+4. Once `/api/status` shows `"ready": true`, share your Render URL directly with the client:
+   ```text
+   https://leafwatch-inference.onrender.com
+   ```
 
-Vercel hosts the website and lightweight API routes. The trained YOLO model runs on an inference service because Vercel serverless functions do not support full PyTorch model execution reliably.
+> **Using your own trained model weights without Hugging Face:** Upload your `best.pt` (or `best.pth`) to a GitHub Release and set `MODEL_URL=https://github.com/<user>/<repo>/releases/download/<tag>/best.pt` in Render's Environment Variables.
 
-```text
-INFERENCE_API_URL=https://your-render-service.onrender.com/api/scan
-INFERENCE_STATUS_URL=https://your-render-service.onrender.com/api/status
+---
+
+### Option 2: Vercel (Client Link) + Render (Model Backend)
+
+If you want a `*.vercel.app` link for the client:
+
+1. Deploy the backend on Render (Option 1 above) or Koyeb (`app.koyeb.com`, also 512 MB free Docker tier).
+2. Import the same GitHub repository on [Vercel](https://vercel.com/new).
+3. In Vercel **Project Settings → Environment Variables**, add:
+   ```text
+   INFERENCE_API_URL=https://leafwatch-inference.onrender.com/api/scan
+   INFERENCE_STATUS_URL=https://leafwatch-inference.onrender.com/api/status
+   ```
+4. Redeploy on Vercel and share your `https://<your-project>.vercel.app` link.
+
+---
+
+### Option 3: Instant Free Demo Link from Your PC (Zero Cloud Signup)
+
+For a quick live client demo directly from your laptop (no 512 MB RAM limit, zero cloud setup):
+
+1. Start Leafwatch locally:
+   ```bash
+   python serve.py
+   ```
+2. In a second terminal, expose port `8000` using Cloudflare's free Quick Tunnel (no account required):
+   ```bash
+   npx cloudflared tunnel --url http://127.0.0.1:8000
+   ```
+3. Share the generated `https://*.trycloudflare.com` URL with your client (stays live as long as both terminals are open).
+
+---
+
+## Run Locally
+
+```bash
+pip install -r requirements.txt
+python serve.py
 ```
 
-`api/scan.js` forwards each photo to the model service. `api/status.js` lets the interface show whether the model is ready. No Hugging Face account is required. Render downloads the public IP102 model automatically when it starts.
+Open `http://127.0.0.1:8000` in your browser. By default `serve.py` loads `model-source/best.pt` (or `training-runs/mobilenet-ip102/best.pth` if present). You can also select a specific checkpoint:
 
-## Model training
+```bash
+MODEL_PATH=training-runs/mobilenet-ip102/best.pth python serve.py
+```
 
-The source files are included in this repository:
+## Model Training
 
-- `prepare_ip102.py` converts the official IP102 detection material into aphid, whitefly and caterpillar classes.
-- `train.py` audits the splits, trains YOLO, and writes held-out test metrics to `evaluation.json`.
-- `serve.py` is the inference service that loads the model and exposes the contract expected by Vercel.
+- `prepare_ip102.py` converts the official IP102 detection archives into `aphid`, `whitefly`, and `caterpillar` classes.
+- `train.py` audits splits, trains YOLO, and writes held-out metrics to `evaluation.json`.
+- `mobile_detector.py` trains and runs the lightweight MobileNetV3 SSDLite checkpoint (`best.pth`).
+- See [training/README.md](training/README.md) for training instructions.
 
-Download the IP102 resources through the [official project source](https://github.com/xpwu95/IP102). Keep the dataset outside this GitHub repository. The model service can begin with the public [YOLO11s model trained on IP102](https://huggingface.co/underdogquality/yolo11s-pest-detection), then later use the project’s own `best.pt` after training.
-
-Run the model training on Google Colab, Kaggle, a university GPU machine, or another GPU-enabled host. Use the process in [training/README.md](training/README.md). Training output should be evaluated on independent field photos before any accuracy claim is made.
-
-## What is kept where
+## What Is Kept Where
 
 | Location | Contents |
 | --- | --- |
-| GitHub and Vercel | Website source, Vercel API proxy, and training code |
-| Training machine | Temporary IP102 images and labels |
-| Inference service | Model weights and short-lived photo processing |
-| Student browser | Their local field-log entries |
+| GitHub + Render / Koyeb | Website (`dist/`), FastAPI service (`serve.py`), and `Dockerfile` |
+| Optional Vercel site | Static website (`dist/`) and `/api/*` serverless proxy (`api/scan.js`, `api/status.js`) |
+| Training machine | Temporary IP102 images and labels (`training-data/`) |
+| Client browser | Local field-log entries (`localStorage`) |
 
-Photos are sent to the inference service for analysis. Leafwatch processes them in memory and does not write them to disk.
+Photos are processed in memory and are not written to disk.

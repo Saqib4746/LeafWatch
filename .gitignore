@@ -1,9 +1,13 @@
 __pycache__/
 *.pt
+*.pth
 .venv/
+.model-build/
+.model-config/
 training-data/
 training-runs/
 models/
-*.pth
 .env
 .env.local
+.DS_Store
+Thumbs.db

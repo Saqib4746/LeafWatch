@@ -1,0 +1,13 @@
+.git/
+.venv/
+.model-build/
+.model-config/
+.openai/
+__pycache__/
+*.pyc
+training-data/
+training-runs/
+models/
+model-source/
+.env
+.env.*
