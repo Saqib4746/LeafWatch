@@ -1,0 +1,8 @@
+{
+  "field": "Botany garden - Plot B",
+  "capturedAt": "2026-11-11T06:30:00Z",
+  "detections": [
+    { "pest": "caterpillar", "confidence": 0.86, "box": [0.24, 0.18, 0.36, 0.22] },
+    { "pest": "aphid", "confidence": 0.81 }
+  ]
+}

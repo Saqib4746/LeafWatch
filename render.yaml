@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: leafwatch-inference
+    runtime: docker
+    healthCheckPath: /api/status
