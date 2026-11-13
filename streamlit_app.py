@@ -282,7 +282,14 @@ if "observations" not in st.session_state:
 
 # Sidebar Navigation & Settings
 with st.sidebar:
-    st.image(str(ROOT / "dist" / "leaf.jpg") if (ROOT / "dist" / "leaf.jpg").is_file() else "🌿", use_container_width=True)
+    banner_found = False
+    for banner_path in (ROOT / "leaf.jpg", ROOT / "dist" / "leaf.jpg"):
+        if banner_path.is_file():
+            st.image(str(banner_path), use_container_width=True)
+            banner_found = True
+            break
+    if not banner_found:
+        st.markdown("<div style='font-size: 2.5rem; text-align: center;'>🌿</div>", unsafe_allow_html=True)
     st.markdown("### 🌿 Leafwatch Scout")
     st.caption("Department of Botany · Smart Pest Detector")
 
