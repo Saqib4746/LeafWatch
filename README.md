@@ -1,83 +1,77 @@
-# Leafwatch
+# 🌿 Leafwatch · Smart Pest Detector
 
-Leafwatch is a mobile-ready pest detection website for Botany students. Upload a leaf photo to identify visible pest species (aphids, whiteflies, caterpillars, and other IP102 species), confidence scores, bounding boxes, potential crop damage, and scouting advice.
-
-## Free Hosting Options (Shareable Client Link)
-
-### Option 1: Render Free Web Service (All-in-One: Model + Website)
-
-`serve.py` already serves both the trained model API and the full website (`dist/`), so you only need one free Render service and one URL to share with your client.
-
-1. Push this `leafwatch` folder to a GitHub repository.
-2. Sign in to [Render](https://render.com) with GitHub, click **New + → Blueprint**, and select your repository.
-3. Render automatically reads `render.yaml` and `Dockerfile` and deploys the service for free (no credit card required).
-4. Once `/api/status` shows `"ready": true`, share your Render URL directly with the client:
-   ```text
-   https://leafwatch-inference.onrender.com
-   ```
-
-> **Using your own trained model weights without Hugging Face:** Upload your `best.pt` (or `best.pth`) to a GitHub Release and set `MODEL_URL=https://github.com/<user>/<repo>/releases/download/<tag>/best.pt` in Render's Environment Variables.
+Leafwatch is an AI-powered agricultural pest detection web application developed for the Department of Botany. Users capture or upload a leaf photo to instantly detect visible crop pests (aphids, whiteflies, caterpillars, and other agricultural pests), review bounding boxes and confidence scores, evaluate potential crop damage, and receive actionable integrated pest management (IPM) scouting guidance.
 
 ---
 
-### Option 2: Vercel (Client Link) + Render (Model Backend)
+## 🚀 Free Hosting on Streamlit Community Cloud (Recommended)
 
-If you want a `*.vercel.app` link for the client:
+Streamlit Community Cloud is 100% free, provides 1 GB of RAM (ideal for PyTorch & YOLO), supports live mobile camera capture, and gives you a permanent shareable URL (`https://<your-app-name>.streamlit.app`) to send to your client.
 
-1. Deploy the backend on Render (Option 1 above) or Koyeb (`app.koyeb.com`, also 512 MB free Docker tier).
-2. Import the same GitHub repository on [Vercel](https://vercel.com/new).
-3. In Vercel **Project Settings → Environment Variables**, add:
-   ```text
-   INFERENCE_API_URL=https://leafwatch-inference.onrender.com/api/scan
-   INFERENCE_STATUS_URL=https://leafwatch-inference.onrender.com/api/status
-   ```
-4. Redeploy on Vercel and share your `https://<your-project>.vercel.app` link.
+### Step-by-Step Deployment:
 
----
-
-### Option 3: Instant Free Demo Link from Your PC (Zero Cloud Signup)
-
-For a quick live client demo directly from your laptop (no 512 MB RAM limit, zero cloud setup):
-
-1. Start Leafwatch locally:
+1. **Commit and Push to GitHub**:
+   Make sure all files (`streamlit_app.py`, `app.py`, `requirements.txt`, `packages.txt`, `.streamlit/config.toml`) are in the root of your GitHub repository (`Saqib4746/LeafWatch`):
    ```bash
-   python serve.py
+   git add .
+   git commit -m "Deploy Leafwatch to Streamlit Cloud"
+   git push origin main
    ```
-2. In a second terminal, expose port `8000` using Cloudflare's free Quick Tunnel (no account required):
-   ```bash
-   npx cloudflared tunnel --url http://127.0.0.1:8000
-   ```
-3. Share the generated `https://*.trycloudflare.com` URL with your client (stays live as long as both terminals are open).
+
+2. **Deploy on Streamlit Community Cloud**:
+   - Go to [share.streamlit.io](https://share.streamlit.io) and sign in with your **GitHub** account.
+   - Click **Create app** (or **New app**).
+   - Configure the deployment settings:
+     - **Repository**: `Saqib4746/LeafWatch`
+     - **Branch**: `main`
+     - **Main file path**: `streamlit_app.py`
+     - **App URL** (optional custom subdomain): e.g. `leafwatch-botany.streamlit.app`
+   - Click **Deploy!**
+
+3. **Share with Client**:
+   - Streamlit will install the requirements and launch the application in ~2 minutes.
+   - Share your live link (`https://<your-app-name>.streamlit.app`) with the client. It works seamlessly on phones, tablets, and desktops!
 
 ---
 
-## Run Locally
+## 💻 Running Locally
 
+### Streamlit Web App:
 ```bash
 pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+Open `http://localhost:8501` in your browser.
+
+### Alternative FastAPI Service:
+```bash
 python serve.py
 ```
+Open `http://127.0.0.1:8000` in your browser.
 
-Open `http://127.0.0.1:8000` in your browser. By default `serve.py` loads `model-source/best.pt` (or `training-runs/mobilenet-ip102/best.pth` if present). You can also select a specific checkpoint:
+---
 
-```bash
-MODEL_PATH=training-runs/mobilenet-ip102/best.pth python serve.py
-```
+## 🔬 Model & Architecture
 
-## Model Training
+- **Default Model**: YOLO11s trained on the IP102 agricultural benchmark (automatically loaded/downloaded).
+- **Lightweight Alternative**: MobileNetV3 SSDLite (`training-runs/mobilenet-ip102/best.pth`).
+- **Pest Classes**:
+  - 🟠 **Aphids** (*Aphidoidea*): green bugs, toxoptera, therioaphis, etc.
+  - 🔵 **Whiteflies** (*Aleyrodidae*): sweetpotato whitefly, greenhouse whitefly, etc.
+  - 🟢 **Caterpillars** (*Lepidoptera* larvae): armyworms, cutworms, leaf rollers, borers, budworms.
+  - 🟣 **Other Field Pests**: Wider IP102 species (thrips, plant hoppers, beetles).
 
-- `prepare_ip102.py` converts the official IP102 detection archives into `aphid`, `whitefly`, and `caterpillar` classes.
-- `train.py` audits splits, trains YOLO, and writes held-out metrics to `evaluation.json`.
-- `mobile_detector.py` trains and runs the lightweight MobileNetV3 SSDLite checkpoint (`best.pth`).
-- See [training/README.md](training/README.md) for training instructions.
+---
 
-## What Is Kept Where
+## 📂 Project Structure
 
-| Location | Contents |
+| File / Folder | Purpose |
 | --- | --- |
-| GitHub + Render / Koyeb | Website (`dist/`), FastAPI service (`serve.py`), and `Dockerfile` |
-| Optional Vercel site | Static website (`dist/`) and `/api/*` serverless proxy (`api/scan.js`, `api/status.js`) |
-| Training machine | Temporary IP102 images and labels (`training-data/`) |
-| Client browser | Local field-log entries (`localStorage`) |
-
-Photos are processed in memory and are not written to disk.
+| `streamlit_app.py` | Main Streamlit web application with detection, camera input, and field log |
+| `app.py` | Streamlit entrypoint redirect |
+| `packages.txt` | Linux system dependencies (`libgl1`, `libglib2.0-0`) for Streamlit Cloud |
+| `requirements.txt` | Python packages for Streamlit, PyTorch, Ultralytics, and Pillow |
+| `.streamlit/config.toml` | Custom botany theme styling and server config |
+| `mobile_detector.py` | Lightweight MobileNetV3 detector runner |
+| `serve.py` | FastAPI inference server (optional alternative) |
+| `dist/` | Standalone HTML5/JS frontend (for FastAPI / Vercel) |

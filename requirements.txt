@@ -1,6 +1,10 @@
-fastapi==0.115.12
-uvicorn[standard]==0.34.2
-python-multipart==0.0.20
-Pillow==11.2.1
-ultralytics==8.3.159
-huggingface-hub==0.32.0
+streamlit>=1.35.0
+ultralytics>=8.3.0
+torch
+torchvision
+Pillow>=10.0.0
+huggingface-hub>=0.20.0
+pandas>=2.0.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-multipart>=0.0.20
