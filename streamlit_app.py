@@ -24,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom Styling matching Leafwatch Department of Botany Theme
+# Custom Styling matching Leafwatch Department of Botany Theme + NanStack Branding
 st.markdown(
     """
     <style>
@@ -41,23 +41,51 @@ st.markdown(
         border-radius: 16px;
         color: white;
         margin-bottom: 24px;
-        box-shadow: 0 4px 16px rgba(21, 62, 49, 0.12);
+        box-shadow: 0 4px 16px rgba(21, 62, 49, 0.15);
     }
-    .main-header h1 {
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .header-title {
         color: white !important;
-        font-size: 2.2rem;
+        font-size: 2.1rem;
         font-weight: 800;
-        margin: 0;
+        margin: 4px 0 0 0 !important;
         letter-spacing: -0.03em;
     }
-    .main-header p {
+    .header-subtitle {
         color: #d4e8a5 !important;
-        font-size: 0.95rem;
-        font-weight: 600;
-        margin-top: 4px;
-        margin-bottom: 0;
+        font-size: 0.88rem;
+        font-weight: 700;
+        margin: 0 !important;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.12em;
+    }
+    .nanstack-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #ffffff;
+        color: #153e31 !important;
+        font-weight: 800;
+        font-size: 0.92rem;
+        padding: 10px 22px;
+        border-radius: 999px;
+        text-decoration: none !important;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+        border: 2px solid #d4e8a5;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .nanstack-btn:hover {
+        background: #d4e8a5;
+        color: #102c23 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.26);
     }
     .pest-badge {
         display: inline-block;
@@ -118,7 +146,7 @@ PEST_GUIDE = {
         "name": "Other field pest",
         "scientific": "IP102 identified species",
         "color": "#7B1FA2",
-        "look": "Insect specimen identified within the wider IP102 agricultural benchmark (e.g. thrips, planthoppers, beetles).",
+        "look": "Insect specimen identified within the wider IP102 agricultural benchmark (e.g. thrips, planthoppers, beetles, mites).",
         "signs": "Examine leaf surface for stippling, puncture marks, or skeletonization.",
         "damage": "Damage varies by species and host crop. Review the exact species name identified by the model.",
         "action": "Cross-reference the detected species with local agricultural extension materials before applying treatment.",
@@ -233,12 +261,18 @@ def annotate_image(image: Image.Image, detections: list) -> Image.Image:
     return annotated
 
 
-def run_inference(detector_info, image: Image.Image, conf_threshold: float = 0.35) -> list:
-    """Run model inference and return formatted detections."""
-    # Resize down if overly massive to save memory
+def run_inference(
+    detector_info,
+    image: Image.Image,
+    conf_threshold: float = 0.15,
+    imgsz: int = 1024,
+    augment: bool = True,
+) -> list:
+    """Run model inference with high-resolution scaling and optional TTA."""
+    # Retain high resolution for small pests (up to 1600px)
     proc_img = ImageOps.exif_transpose(image).convert("RGB")
-    if max(proc_img.size) > 1280:
-        proc_img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+    if max(proc_img.size) > 1600:
+        proc_img.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
 
     m_type = detector_info["type"]
     model = detector_info["model"]
@@ -255,7 +289,14 @@ def run_inference(detector_info, image: Image.Image, conf_threshold: float = 0.3
                     "box": item["box"],
                 })
     else:
-        result = model.predict(proc_img, conf=conf_threshold, imgsz=640, max_det=150, verbose=False)[0]
+        result = model.predict(
+            proc_img,
+            conf=conf_threshold,
+            imgsz=imgsz,
+            augment=augment,
+            max_det=300,
+            verbose=False,
+        )[0]
         boxes = result.boxes.xyxyn.tolist()
         scores = result.boxes.conf.tolist()
         labels = result.boxes.cls.int().tolist()
@@ -294,8 +335,38 @@ with st.sidebar:
     st.caption("Department of Botany · Smart Pest Detector")
 
     st.divider()
-    st.markdown("**Detection Parameters**")
-    conf_slider = st.slider("Confidence Threshold", min_value=0.15, max_value=0.85, value=0.35, step=0.05)
+    # NanStack Website Button in Sidebar
+    st.link_button("🚀 Developed by NanStack", "https://nanstack.tech", use_container_width=True)
+
+    st.divider()
+    st.markdown("**🔬 Detection Sensitivity**")
+    conf_slider = st.slider(
+        "Confidence Threshold",
+        min_value=0.05,
+        max_value=0.85,
+        value=0.15,
+        step=0.05,
+        help="Recommended: 0.15 for small, camouflaged, or clustered insects like aphids and whiteflies.",
+    )
+
+    res_choice = st.selectbox(
+        "Scan Resolution",
+        ["High-Res (1024px) - Best for small pests", "Ultra-Detail (1280px) - Macro view", "Standard (640px) - Fast"],
+        index=0,
+        help="Higher resolutions allow the model to catch small insects that get blurred out at standard 640px.",
+    )
+    img_size_map = {
+        "High-Res (1024px) - Best for small pests": 1024,
+        "Ultra-Detail (1280px) - Macro view": 1280,
+        "Standard (640px) - Fast": 640,
+    }
+    selected_imgsz = img_size_map[res_choice]
+
+    deep_scan_toggle = st.checkbox(
+        "Deep Scan (TTA)",
+        value=True,
+        help="Applies multi-scale & flip test-time augmentation to identify pests in shadows or odd angles.",
+    )
 
     st.divider()
     # Model status badge
@@ -310,12 +381,21 @@ with st.sidebar:
     st.markdown("**About Leafwatch**")
     st.caption("Leafwatch assists students and agronomists in rapid scouting of crop leaves for early pest detection.")
 
-# Main Application Banner
+# Main Application Banner with Top-Right "Developed by NanStack" Button
 st.markdown(
     """
     <div class="main-header">
-        <p>Department of Botany · Field Scouting Project</p>
-        <h1>🌿 Leafwatch · Smart Pest Detector</h1>
+        <div class="header-container">
+            <div>
+                <p class="header-subtitle">Department of Botany · Field Scouting Project</p>
+                <h1 class="header-title">🌿 Leafwatch · Smart Pest Detector</h1>
+            </div>
+            <div>
+                <a href="https://nanstack.tech" target="_blank" rel="noopener noreferrer" class="nanstack-btn">
+                    🚀 Developed by NanStack ↗
+                </a>
+            </div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -385,7 +465,7 @@ with tab_scan:
             uploaded_file = st.file_uploader(
                 "Choose a leaf photo",
                 type=["jpg", "jpeg", "png", "webp"],
-                help="Accepts JPG, PNG, or WebP up to 15MB",
+                help="Accepts JPG, PNG, or WebP up to 25MB",
             )
         else:
             uploaded_file = st.camera_input("Take a photo of the leaf")
@@ -401,11 +481,17 @@ with tab_scan:
                 if det_info is None:
                     st.error("Detector is unavailable. Please check model logs.")
                 else:
-                    with st.spinner("Analyzing leaf for insect pests..."):
-                        detections = run_inference(det_info, image, conf_threshold=conf_slider)
+                    with st.spinner("Analyzing leaf for insect pests (high-res scan)..."):
+                        detections = run_inference(
+                            det_info,
+                            image,
+                            conf_threshold=conf_slider,
+                            imgsz=selected_imgsz,
+                            augment=deep_scan_toggle,
+                        )
 
                     annotated = annotate_image(image, detections)
-                    st.image(annotated, caption="Detection Results with Bounding Boxes", use_container_width=True)
+                    st.image(annotated, caption=f"Detection Results ({len(detections)} pests found)", use_container_width=True)
 
                     # Save to session log
                     log_entry = {
@@ -419,9 +505,22 @@ with tab_scan:
 
                     st.markdown("---")
                     if not detections:
-                        st.success("✅ **No pests detected** above the confidence threshold. Foliage appears clear of heavy infestation.")
+                        st.info(
+                            f"ℹ️ **No pests detected at confidence threshold ≥ {int(conf_slider * 100)}%.**\n\n"
+                            "**If you see visible insects on this leaf:**\n"
+                            "1. **Lower the Confidence Threshold** in the sidebar (try **0.10** or **0.05**).\n"
+                            "2. Ensure **Scan Resolution** is set to **High-Res (1024px)**.\n"
+                            "3. Make sure **Deep Scan (TTA)** is checked in the sidebar.\n"
+                            "4. Crop or zoom in closer to the insect cluster."
+                        )
+
+                        # Quick diagnostic check at lower threshold
+                        if conf_slider > 0.10:
+                            low_check = run_inference(det_info, image, conf_threshold=0.08, imgsz=selected_imgsz, augment=False)
+                            if low_check:
+                                st.warning(f"💡 *Found {len(low_check)} potential candidate(s) at a lower confidence level (8% - {int(conf_slider * 100)}%). Lower the slider in the sidebar to reveal them!*")
                     else:
-                        st.warning(f"⚠️ **{len(detections)} Pest Detection(s) Identified:**")
+                        st.success(f"⚠️ **{len(detections)} Pest Detection(s) Identified:**")
 
                         # Group by category
                         grouped_hits = {}
